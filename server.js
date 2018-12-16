@@ -66,6 +66,7 @@ app.post('/cards/edit/:cardId', (req, res) => {
     (err, result) => {
       if (err) return res.send(500, err)
 
+      io.emit('cardUpdated', req.body)
       res.redirect('/cards')
     }
   )
