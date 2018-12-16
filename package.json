@@ -1,0 +1,27 @@
+{
+  "name": "express-jukebox",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "nodemon -i node_modules/ server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.18.3",
+    "dotenv": "^6.2.0",
+    "ejs": "^2.6.1",
+    "express": "^4.16.4",
+    "http": "0.0.0",
+    "mongodb": "^3.1.10",
+    "mongoose": "^5.4.0",
+    "socket.io": "^2.2.0",
+    "sonos": "^1.7.0"
+  },
+  "devDependencies": {
+    "ejs-lint": "^0.3.0",
+    "nodemon": "^1.18.8"
+  }
+}

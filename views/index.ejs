@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Express Jukebox</title>
+
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+  <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <main class="container-fluid p-4">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item active" aria-current="page">Home</li>
+      </ol>
+    </nav>
+
+    <h2 class="mb-3">Welcome to the Jukebox</h2>
+
+    <ul class="list-group list-group-flush cards my-4" id="cardList">
+      <svg width="100px" height="100px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid" class="lds-triangles mx-auto" id="trianglesLoader">
+        <g transform="translate(50,42)"><g transform="scale(0.8)"><g transform="translate(-50,-50)">
+          <polygon ng-attr-fill="{{config.c1}}" points="72.5,50 50,11 27.5,50 50,50" fill="#f3dcb2">
+            <animateTransform attributeName="transform" type="rotate" calcMode="linear" values="0 50 38.5;360 50 38.5" keyTimes="0;1" dur="1s" begin="0s" repeatCount="indefinite"></animateTransform>
+          </polygon>
+          <polygon ng-attr-fill="{{config.c2}}" points="5,89 50,89 27.5,50" fill="#cacbc5">
+            <animateTransform attributeName="transform" type="rotate" calcMode="linear" values="0 27.5 77.5;360 27.5 77.5" keyTimes="0;1" dur="1s" begin="0s" repeatCount="indefinite"></animateTransform>
+          </polygon>
+          <polygon ng-attr-fill="{{config.c3}}" points="72.5,50 50,89 95,89" fill="#a5a6a0">
+            <animateTransform attributeName="transform" type="rotate" calcMode="linear" values="0 72.5 77.5;360 72 77.5" keyTimes="0;1" dur="1s" begin="0s" repeatCount="indefinite"></animateTransform>
+          </polygon>
+        </g></g></g>
+      </svg>
+    </ul>
+
+    <h4>Add new card</h4>
+    <form action="/cards" method="POST" id="frmNewCard">
+      <div class="form">
+        <div class="form-group">
+          <label for="number">ID</label>
+          <input type="text" class="form-control" name="number" id="cardNumber" placeholder="Enter card ID">
+        </div>
+
+        <div class="form-group">
+          <label for="label">Label</label>
+          <input type="text" class="form-control" name="label" id="cardLabel" placeholder="A short label identifying the card">
+        </div>
+
+        <div class="form-group">
+          <label for="uri">URI</label>
+          <input type="text" class="form-control" name="uri" id="cardURI" placeholder="The Spotify or Sonos URI to be played">
+        </div>
+
+        <div class="form-check">
+          <input type="checkbox" name="shuffle" id="cardShuffle">
+          <label for="shuffle">Shuffle?</label>
+        </div>
+
+        <div class="form-check">
+          <input type="checkbox" name="repeat" id="cardRepeat">
+          <label for="repeat">Repeat?</label>
+        </div>
+
+        <input type="submit" class="btn btn-primary" value="Add card" id="sendCard">
+      </div>
+    </form>
+
+    <script type="text/javascript">
+      $(() => {
+        // init page
+        var socket = io()
+        socket.on('cardAdded', addCard)
+        socket.on('cardDeleted', removeCard)
+
+        $("#frmNewCard").submit(() => {
+          sendCard({
+            number: $("#cardNumber").val(),
+            label: $("#cardLabel").val(),
+            uri: $("#cardURI").val(),
+            shuffle: document.getElementById("cardShuffle").checked ? true : false,
+            repeat: document.getElementById("cardRepeat").checked ? true : false
+          })
+
+          document.getElementById("frmNewCard").reset()
+          return false
+        })
+
+        var deleteBtns = document.getElementsByClassName("btnDeleteCard")
+        for (let btn of deleteBtns) {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault
+            deleteCard(e.target.dataset.number)
+            // document.getElementById("frmDeleteCard" + e.target.dataset.id).submit()
+          })
+        }
+
+        getCards()
+        // done init page
+      })
+
+      function getCards() {
+        fetch('/api/v1/cards').then((response) => {
+          return response.json()
+        }).then((data) => {
+          $("#trianglesLoader").remove()
+          data.forEach(addCard)
+        })
+      }
+
+      function removeCard(cardId) {
+        $("#card" + cardId).remove()
+      }
+
+      function sendCard(card) {
+        return fetch('/api/v1/cards', {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+          },
+          body: JSON.stringify(card)
+        }).then((response) => {
+          console.log(response.json())
+        })
+      }
+
+      function addCard(card) {
+        var cardList = document.getElementById('cardList')
+        var cardItem = createNode('li')
+        var label = createNode('span')
+        var btnGrp = createNode('div')
+        var editBtn = createNode('a')
+        var deleteBtn = createNode('a')
+
+        cardItem.classList.add("list-group-item", "d-flex", "justify-content-between")
+        cardItem.id = "card" + card.number
+        label.textContent = card.label ? card.label + ' [' + card.number + ']' : card.number
+
+        btnGrp.classList.add("btn-group")
+        btnGrp.attributes.role = "group"
+
+        editBtn.classList.add("btn", "btn-sm", "btn-primary")
+        editBtn.href = "/cards/edit/" + card.number
+        editBtn.text = "Edit"
+
+        deleteBtn.classList.add("btn", "btn-sm", "btn-danger")
+        deleteBtn.href = "#"
+        deleteBtn.text = "Delete"
+        deleteBtn.id = "btnDeleteCard" + card.number
+        deleteBtn.dataset.number = card.number
+
+        append(btnGrp, editBtn)
+        append(btnGrp, deleteBtn)
+
+        append(cardItem, label)
+        append(cardItem, btnGrp)
+
+        append(cardList, cardItem)
+
+        // $("#cardList").append(`
+        //   <li class="list-group-item d-flex justify-content-between" id="card${ card.number }">
+        //     <span>${ card.label + ' [' + card.number + ']' || card.number }</span>
+        //     <div class="btn-group" role="group">
+        //       <a href="/cards/edit/${ card.number }" class="btn btn-sm btn-primary">Edit</a>
+        //       <a href="#" class="btn btn-sm btn-danger btnDeleteCard" id="btnDeleteCard${ card.number }" data-id="${ card.number }">Delete</a>
+        //     </div>
+        //   </li>
+        // `)
+
+        document.getElementById("btnDeleteCard" + card.number).addEventListener('click', (e) => {
+          e.preventDefault
+          deleteCard(e.target.dataset.number)
+        })
+      }
+
+      function deleteCard(cardId) {
+        return fetch('/api/v1/cards/' + cardId, {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+          },
+        }).then((response) => {
+          console.log(response.json())
+        })
+      }
+
+      function createNode(element) {
+        return document.createElement(element)
+      }
+
+      function append(parent, el) {
+        return parent.appendChild(el)
+      }
+    </script>
+  </main>
+</body>
+</html>
