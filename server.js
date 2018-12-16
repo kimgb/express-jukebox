@@ -36,6 +36,10 @@ app.set('view engine', 'ejs')
 //   })
 // })
 
+app.get('/', (req, res) => {
+  res.redirect('/cards')
+})
+
 app.get('/cards', (req, res) => {
   res.render('index.ejs')
 })
@@ -129,7 +133,7 @@ app.delete('/api/v1/cards/:cardId', (req, res) => {
 })
 
 var db
-MongoClient.connect(process.env.DB_CONNECTION_STR, (err, client) => {
+MongoClient.connect(process.env.DB_CONNECTION_STR, { useNewUrlParser: true }, (err, client) => {
   if (err) return console.log(err)
   db = client.db('jukebox')
 
