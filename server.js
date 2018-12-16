@@ -1,6 +1,7 @@
 require('dotenv').config()
 
 const express = require('express')
+const path = require('path')
 const bodyParser = require('body-parser')
 const app = express()
 const MongoClient = require('mongodb').MongoClient
@@ -25,8 +26,8 @@ app.use(bodyParser.json())
 //
 //   next()
 // })
-
 app.set('view engine', 'ejs')
+app.set('views', path.join(__dirname, 'views'))
 //
 // io.on('connection', (socket) => {
 //   console.log('a user is connected')
