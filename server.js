@@ -74,7 +74,7 @@ app.post('/cards/edit/:cardId', (req, res) => {
 
 app.put('/cards/:cardId', (req, res) => {
   db.collection('cards').findOne({ number: req.params.cardId }, (err, card) => {
-    if (card && card.uri) {
+    if (card && card.uri) { // scanned and configured
       var playMode
       if (card.shuffle && card.repeat) {
         playMode = "SHUFFLE"
@@ -87,16 +87,19 @@ app.put('/cards/:cardId', (req, res) => {
       }
 
       speaker.setPlayMode(playMode)
+      speaker.flush() // clear queue
       speaker.play(card.uri)
 
       res.send({ message: 'Queued ' + card.uri + ' to play' })
-    } else if (!card) {
+    } else if (!card) { // never scanned before/deleted
       db.collection('cards').insertOne({ number: req.params.cardId }, (err, result) => {
         if (err) return console.log(err)
 
         io.emit('cardAdded', { number: req.params.cardId })
         res.send({ message: 'Card created with number ' + req.params.cardId })
       })
+    } else { // card that's been scanned but still has no URI
+      res.send({ message: 'Card exists, but awaiting configuration' })
     }
   })
 })
