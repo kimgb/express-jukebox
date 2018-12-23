@@ -85,10 +85,26 @@ app.put('/cards/:cardId', (req, res) => {
       } else {
         playMode = "NORMAL"
       }
-
-      speaker.setPlayMode(playMode)
-      speaker.flush() // clear queue
-      speaker.play(card.uri)
+      
+      // The node Sonos API in use is async
+      // Order of operations - clear queue; set play mode; add URI to queue; start playing
+      // speaker.selectQueue() may be preferable to speaker.play(), as it does begin playback,
+      // and might prevent issues with restarting a third-party session e.g. Spotify!
+      speaker.flush().then(result => { 
+        console.log('Flushed queue %j', result) 
+        return speaker.setPlayMode(playMode)
+      }).then(result => {
+        console.log('Set play mode %j', result)
+        return speaker.queue(card.uri)
+      }).then(result => {
+        console.log('Added to queue %j', result)
+        return speaker.selectQueue()
+        // return speaker.play()
+      }).then(result => {
+        console.log('Started playing queue %j', result)
+      }).catch(err => {
+        console.log('An error occurred: %j', err)
+      })
 
       res.send({ message: 'Queued ' + card.uri + ' to play' })
     } else if (!card) { // never scanned before/deleted
