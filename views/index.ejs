@@ -68,7 +68,7 @@
           <label for="repeat">Repeat?</label>
         </div>
 
-        <input type="submit" class="btn btn-primary" value="Add card" id="sendCard">
+        <input type="submit" class="btn btn-primary" value="Add card" id="createCard">
       </div>
     </form>
 
@@ -81,7 +81,7 @@
         socket.on('cardDeleted', removeCard)
 
         $("#frmNewCard").submit(() => {
-          sendCard({
+          createCard({
             number: $("#cardNumber").val(),
             label: $("#cardLabel").val(),
             uri: $("#cardURI").val(),
@@ -92,14 +92,6 @@
           document.getElementById("frmNewCard").reset()
           return false
         })
-
-        var deleteBtns = document.getElementsByClassName("btnDeleteCard")
-        for (let btn of deleteBtns) {
-          btn.addEventListener('click', (e) => {
-            e.preventDefault()
-            deleteCard(e.target.dataset.number)
-          })
-        }
 
         getCards()
         // done init page
@@ -118,7 +110,7 @@
         $("#card" + cardId).remove()
       }
 
-      function sendCard(card) {
+      function createCard(card) {
         return fetch('/api/v1/cards', {
           method: "POST",
           headers: {
@@ -135,35 +127,19 @@
         var cardItem = buildCardItem(card)
 
         append(cardList, cardItem)
-
-        // $("#cardList").append(`
-        //   <li class="list-group-item d-flex justify-content-between" id="card${ card.number }">
-        //     <span>${ card.label + ' [' + card.number + ']' || card.number }</span>
-        //     <div class="btn-group" role="group">
-        //       <a href="/cards/edit/${ card.number }" class="btn btn-sm btn-primary">Edit</a>
-        //       <a href="#" class="btn btn-sm btn-danger btnDeleteCard" id="btnDeleteCard${ card.number }" data-id="${ card.number }">Delete</a>
-        //     </div>
-        //   </li>
-        // `)
-
-        // document.getElementById("btnDeleteCard" + card.number).addEventListener('click', (e) => {
-        //   e.preventDefault
-        //   deleteCard(e.target.dataset.number)
-        // })
-        //
-        // document.getElementById("btnScanCard" + card.number).addEventListener('click', (e) => {
-        //   e.preventDefault
-        //   scanCard(e.target.dataset.number)
-        // })
       }
 
       function updateCard(card) {
         var oldCardItem = document.getElementById('card' + card.number)
         if (oldCardItem) {
+          // change in place - a simple fix that will respect future pagination
+          // or filtering
           var newCardItem = buildCardItem(card)
 
           oldCardItem.parentNode.replaceChild(newCardItem, oldCardItem)
         } else {
+          // NOTE once pagination/filtering is in place, this will lead to some
+          // odd behaviour.
           addCard(card)
         }
       }
@@ -221,7 +197,6 @@
         scanBtn.id = "btnScanCard" + card.number
         scanBtn.dataset.number = card.number
         scanIcon.classList.add("fas", "fa-barcode")
-
         scanBtn.addEventListener('click', (e) => {
           e.preventDefault()
           scanCard(e.target.dataset.number)
@@ -236,7 +211,6 @@
         deleteBtn.id = "btnDeleteCard" + card.number
         deleteBtn.dataset.number = card.number
         deleteIcon.classList.add("fas", "fa-trash")
-
         deleteBtn.addEventListener('click', (e) => {
           e.preventDefault()
           deleteCard(e.target.dataset.number)

@@ -57,7 +57,6 @@ app.post('/cards/edit/:cardId', (req, res) => {
   db.collection('cards').findOneAndUpdate(
     { number: req.params.cardId },
     { $set: {
-      number: req.body.number,
       label: req.body.label,
       uri: req.body.uri,
       shuffle: req.body.shuffle ? true : false,
