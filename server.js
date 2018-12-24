@@ -72,7 +72,28 @@ app.post('/cards/edit/:cardId', (req, res) => {
   )
 })
 
-app.put('/cards/:cardId', (req, res) => {
+// var cardAPI = require('./routes/api-v1-cards')
+// app.use('/api/v1/cards', cardAPI)
+
+app.get('/api/v1/cards', (req, res) => {
+  db.collection('cards').find().toArray((err, cards) => {
+    if (err) return console.log(err)
+
+    res.send(cards)
+  })
+})
+
+app.post('/api/v1/cards', (req, res) => {
+  db.collection('cards').insertOne(req.body, (err, results) => {
+    if (err) return console.log(err)
+
+    // console.log(results)
+    io.emit('cardAdded', req.body)
+    res.send(results)
+  })
+})
+
+app.put('/api/v1/cards/:cardId', (req, res) => {
   db.collection('cards').findOne({ number: req.params.cardId }, (err, card) => {
     if (card && card.uri) { // scanned and configured
       var playMode
@@ -85,13 +106,13 @@ app.put('/cards/:cardId', (req, res) => {
       } else {
         playMode = "NORMAL"
       }
-      
+
       // The node Sonos API in use is async
       // Order of operations - clear queue; set play mode; add URI to queue; start playing
       // speaker.selectQueue() may be preferable to speaker.play(), as it does begin playback,
       // and might prevent issues with restarting a third-party session e.g. Spotify!
-      speaker.flush().then(result => { 
-        console.log('Flushed queue %j', result) 
+      speaker.flush().then(result => {
+        console.log('Flushed queue %j', result)
         return speaker.setPlayMode(playMode)
       }).then(result => {
         console.log('Set play mode %j', result)
@@ -117,27 +138,6 @@ app.put('/cards/:cardId', (req, res) => {
     } else { // card that's been scanned but still has no URI
       res.send({ message: 'Card exists, but awaiting configuration' })
     }
-  })
-})
-
-// var cardAPI = require('./routes/api-v1-cards')
-// app.use('/api/v1/cards', cardAPI)
-
-app.get('/api/v1/cards', (req, res) => {
-  db.collection('cards').find().toArray((err, cards) => {
-    if (err) return console.log(err)
-
-    res.send(cards)
-  })
-})
-
-app.post('/api/v1/cards', (req, res) => {
-  db.collection('cards').insertOne(req.body, (err, results) => {
-    if (err) return console.log(err)
-
-    // console.log(results)
-    io.emit('cardAdded', req.body)
-    res.send(results)
   })
 })
 
