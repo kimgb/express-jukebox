@@ -311,7 +311,7 @@
         scanBtn.href = "#"
         scanBtn.id = "btnScanCard" + card.number
         scanBtn.dataset.number = card.number
-        scanIcon.classList.add("fas", "fa-barcode")
+        scanIcon.classList.add("fas", "fa-play")
         scanBtn.addEventListener('click', (e) => {
           e.preventDefault()
           scanCard(e.target.dataset.number)
