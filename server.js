@@ -154,7 +154,6 @@ app.delete('/api/v1/cards/:cardId', (req, res) => {
 })
 
 app.get('/api/v1/search/spotify', (req, res) => {
-  console.log('spotify search endpoint accessed')
   var id = process.env.SPOTIFY_CLIENT_ID
   var secret = process.env.SPOTIFY_CLIENT_SECRET
   var auth_request = Buffer.from(`${id}:${secret}`).toString('base64')
@@ -212,8 +211,6 @@ app.get('/api/v1/search/spotify', (req, res) => {
         // track.name
         // track.duration_ms (e.g. 226440)
         // track.uri
-        console.log('API search request was successful, sending and logging results')
-        console.log(body)
         res.send(body)
       })
     }
