@@ -20,6 +20,7 @@ router.post('/cards', (req, res) => {
     if (err) return console.log(err)
 
     // console.log(results)
+    var io = req.app.get('socketio')
     io.emit('cardAdded', req.body)
     res.send(results)
   })
@@ -64,6 +65,7 @@ router.put('/cards/:cardId', (req, res) => {
       getDB().collection('cards').insertOne({ number: req.params.cardId }, (err, result) => {
         if (err) return console.log(err)
 
+        var io = req.app.get('socketio')
         io.emit('cardAdded', { number: req.params.cardId })
         res.send({ message: 'Card created with number ' + req.params.cardId })
       })
@@ -79,6 +81,7 @@ router.delete('/cards/:cardId', (req, res) => {
     (err, result) => {
       if (err) return res.send(500, err)
 
+      var io = req.app.get('socketio')
       io.emit('cardDeleted', req.params.cardId)
       res.send(result)
     }

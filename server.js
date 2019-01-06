@@ -41,6 +41,7 @@ app.use(expressWinston.logger({
 // })
 app.set('view engine', 'ejs')
 app.set('views', path.join(__dirname, 'views'))
+app.set('socketio', io)
 //
 // io.on('connection', (socket) => {
 //   console.log('a user is connected')
