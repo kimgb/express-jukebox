@@ -14,9 +14,6 @@ const io = require('socket.io')(http)
 const winston = require('winston')
 const expressWinston = require('express-winston')
 
-const { Sonos } = require('sonos')
-const speaker = new Sonos(config.SONOS_SPEAKER_IP)
-
 app.use(express.static(__dirname))
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())

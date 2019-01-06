@@ -4,6 +4,9 @@ const getDB = require('../db').getDB
 const request = require('request')
 const router = require('express').Router()
 
+const { Sonos } = require('sonos')
+const speaker = new Sonos(config.SONOS_SPEAKER_IP)
+
 router.get('/cards', (req, res) => {
   getDB().collection('cards').find().toArray((err, cards) => {
     if (err) return console.log(err)
