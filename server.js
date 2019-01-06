@@ -7,6 +7,7 @@ const app = express()
 const MongoClient = require('mongodb').MongoClient
 const http = require('http').Server(app)
 const io = require('socket.io')(http)
+const request = require('request')
 
 const { Sonos } = require('sonos')
 const speaker = new Sonos(process.env.SONOS_SPEAKER_IP)
@@ -150,6 +151,67 @@ app.delete('/api/v1/cards/:cardId', (req, res) => {
       res.send(result)
     }
   )
+})
+
+app.get('/api/v1/search/spotify', (req, res) => {
+  var id = process.env.SPOTIFY_CLIENT_ID
+  var secret = process.env.SPOTIFY_CLIENT_SECRET
+  var auth_request = Buffer.from(`${id}:${secret}`).toString('base64')
+  var authOptions = {
+    url: 'https://accounts.spotify.com/api/token',
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Authorization': `Basic ${auth_request}`
+    },
+    form: {
+      grant_type: 'client_credentials'
+    },
+    json: true
+  }
+
+  request.post(authOptions, (error, response, body) => {
+    if (!error && response.statusCode === 200) {
+      // console.log(body)
+      var options = {
+        url: `https://api.spotify.com/v1/search?q=${req.query.q}&type=${req.query.type}`,
+        headers: {
+          'Authorization': `Bearer ${body.access_token}`
+        },
+        json: true
+      }
+
+      request.get(options, (error, response, body) => {
+        if (error) return console.log(error)
+
+        // returns {"albums": {"items":[ ... ]}, "playlists": {"items":[...]}, "tracks": {"items":[...]}}
+        // most relevant info from each album object is:
+        // album.album_type ("single", "album", ...?) "single" seems to include EPs
+        // album.available_markets - filter on this array to make sure the album is available in "AU"? (Spotify may already be filtering)
+        // album.images: array of objects with height, width and url (usually image 0 is 640x640, 1 is 300x300, 2 is 64x64)
+        // album.name
+        // album.artists[0].name (collect all names?)
+        // album.total_tracks - might be more helpful than album_type
+        // album.uri
+        // e.g. search 'kesha+rainbow' presents two otherwise identical albums
+        // but one has her butt concealed in the album art!!
+
+        // relevant playlist info:
+        // playlist.name
+        // playlist.owner.display_name (?)
+        // playlist.images (ditto album with order and sizes)
+        // playlist.tracks.total
+        // playlist.uri
+
+        // track info:
+        // track.album - full fledged album object
+        // track.artists
+        // track.name
+        // track.duration_ms (e.g. 226440)
+        // track.uri
+        res.send(body)
+      })
+    }
+  })
 })
 
 var db

@@ -25,23 +25,11 @@
     <h2 class="mb-3">Welcome to the Jukebox</h2>
 
     <ul class="list-group list-group-flush cards my-4" id="cardList">
-      <svg width="100px" height="100px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid" class="lds-triangles mx-auto" id="trianglesLoader">
-        <g transform="translate(50,42)"><g transform="scale(0.8)"><g transform="translate(-50,-50)">
-          <polygon ng-attr-fill="{{config.c1}}" points="72.5,50 50,11 27.5,50 50,50" fill="#f3dcb2">
-            <animateTransform attributeName="transform" type="rotate" calcMode="linear" values="0 50 38.5;360 50 38.5" keyTimes="0;1" dur="1s" begin="0s" repeatCount="indefinite"></animateTransform>
-          </polygon>
-          <polygon ng-attr-fill="{{config.c2}}" points="5,89 50,89 27.5,50" fill="#cacbc5">
-            <animateTransform attributeName="transform" type="rotate" calcMode="linear" values="0 27.5 77.5;360 27.5 77.5" keyTimes="0;1" dur="1s" begin="0s" repeatCount="indefinite"></animateTransform>
-          </polygon>
-          <polygon ng-attr-fill="{{config.c3}}" points="72.5,50 50,89 95,89" fill="#a5a6a0">
-            <animateTransform attributeName="transform" type="rotate" calcMode="linear" values="0 72.5 77.5;360 72 77.5" keyTimes="0;1" dur="1s" begin="0s" repeatCount="indefinite"></animateTransform>
-          </polygon>
-        </g></g></g>
-      </svg>
+      <img width="100px" height="100px" src="/public/triangles.svg" class="mx-auto" id="trianglesLoader">
     </ul>
 
     <h4>Add new card</h4>
-    <form action="/cards" method="POST" id="frmNewCard">
+    <form action="/api/v1/cards" method="POST" class="mb-3" id="frmNewCard">
       <div class="form">
         <div class="form-group">
           <label for="number">ID</label>
@@ -55,7 +43,12 @@
 
         <div class="form-group">
           <label for="uri">URI</label>
-          <input type="text" class="form-control" name="uri" id="cardURI" placeholder="The Spotify or Sonos URI to be played">
+          <input type="text" class="form-control" name="uri" id="cardURI" placeholder="Paste a URI to play here, or search Spotify below">
+        </div>
+
+        <div class="form-group">
+          <label for="spotifySearchString">Search Spotify</label>
+          <input type="text" class="form-control" name="q" id="spotifySearchString">
         </div>
 
         <div class="form-check">
@@ -72,6 +65,8 @@
       </div>
     </form>
 
+    <div id="spotifyResults"></div>
+
     <script type="text/javascript">
       $(() => {
         // init page
@@ -79,6 +74,15 @@
         socket.on('cardAdded', addCard)
         socket.on('cardUpdated', updateCard)
         socket.on('cardDeleted', removeCard)
+
+        var typingTimer
+        const doneTypingInterval = 500
+        $("#spotifySearchString").keyup(() => {
+          clearTimeout(typingTimer)
+          if($("#spotifySearchString").val().length > 3) {
+            typingTimer = setTimeout(searchSpotify, doneTypingInterval)
+          }
+        })
 
         $("#frmNewCard").submit(() => {
           createCard({
@@ -96,6 +100,38 @@
         getCards()
         // done init page
       })
+
+      function searchSpotify() {
+        var type = "track,album,playlist"
+        var q = encodeURI($("#spotifySearchString").val())
+
+        var spotifyResults = document.getElementById('spotifyResults')
+        append(spotifyResults, loader())
+
+        fetch(`/api/v1/search/spotify?q=${q}&type=${type}`).then((response) => {
+          return response.json()
+        }).then((data) => {
+          while (spotifyResults.firstChild) {
+            spotifyResults.removeChild(spotifyResults.firstChild)
+          }
+
+          var albums = data.albums.items
+          var playlists = data.playlists.items
+          var tracks = data.tracks.items
+
+          if (albums && albums.length > 0) {
+            addSpotifyResultList("Albums", albums.slice(0,7))
+          }
+
+          if (playlists && playlists.length > 0) {
+            addSpotifyResultList("Playlists", playlists.slice(0,7))
+          }
+
+          if (tracks && tracks.length > 0) {
+            addSpotifyResultList("Songs", tracks.slice(0,7))
+          }
+        })
+      }
 
       function getCards() {
         fetch('/api/v1/cards').then((response) => {
@@ -174,6 +210,85 @@
         return parent.appendChild(el)
       }
 
+      function loader() {
+        var svg = createNode('img')
+        svg.classList.add("mx-auto")
+        svg.src = "/public/triangles.svg"
+        svg.width = "100px"
+        svg.height = "100px"
+
+        return svg
+      }
+
+      function addSpotifyResultList(title, items) {
+        // <h5 class="w-100 border-bottom">Albums</h5>
+        // <div class="row" id="albumList"></div>
+        var spotifyResults = document.getElementById('spotifyResults')
+        var headingItem = createNode('h5')
+        var rowItem = createNode('div')
+
+        headingItem.classList.add("w-100", "border-bottom")
+        headingItem.textContent = title
+        rowItem.classList.add("row")
+
+        items.forEach((item) => append(rowItem, buildSpotifyItem(item)))
+
+        append(spotifyResults, headingItem)
+        append(spotifyResults, rowItem)
+      }
+
+      function buildSpotifyItem(item) {
+        var colItem = createNode('div')
+        var itemLink = createNode('a')
+        var itemThumbnail = createNode('img')
+        var itemDetail = createNode('div')
+        var itemName = createNode('span')
+        var itemArtist = createNode('span')
+        var lineBreak = createNode('br')
+
+        colItem.classList.add("mb-3", "col-xs-6", "col-sm-3")
+
+        itemLink.classList.add("d-flex", "align-items-center", "spotify-item")
+        itemLink.dataset.uri = item.uri
+        itemLink.href = "#"
+
+        itemThumbnail.classList.add("float-left", "item-thumbnail")
+        itemThumbnail.alt = `${item.name} cover`
+        // 2 is normally 64x64
+        // Tracks needs to look up item.album.images[2].url
+        if (typeof item.images !== "undefined") {
+          itemThumbnail.src = item.images[item.images.length - 1].url
+        } else {
+          itemThumbnail.src = item.album.images[2].url
+        }
+
+        itemDetail.classList.add("ml-2", "item-detail")
+        itemName.textContent = item.name
+        // collect up to x or 'various artists'?
+        // Playlists need to look up item.owner.display_name
+        if (typeof item.artists !== "undefined") {
+          itemArtist.textContent = item.artists[0].name
+        } else {
+          itemArtist.textContent = item.owner.display_name
+        }
+
+        append(itemDetail, itemName)
+        append(itemDetail, lineBreak)
+        append(itemDetail, itemArtist)
+
+        append(itemLink, itemThumbnail)
+        append(itemLink, itemDetail)
+
+        append(colItem, itemLink)
+
+        itemLink.addEventListener('click', (e) => {
+          e.preventDefault()
+          $("#cardURI").val(itemLink.dataset.uri)
+        })
+
+        return colItem
+      }
+
       function buildCardItem(card) {
         var cardItem = createNode('li')
         var label = createNode('span')
@@ -234,6 +349,19 @@
     <style media="screen">
       .btn > * {
         pointer-events: none;
+      }
+
+      .item-thumbnail {
+        height: 64px;
+        width: 64px;
+      }
+
+      a.spotify-item { text-decoration: none }
+      a.spotify-item:hover { background-color: rgba(0,0,0,0.1) }
+      .item-detail {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     </style>
   </main>
