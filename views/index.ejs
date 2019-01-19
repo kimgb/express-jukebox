@@ -20,11 +20,25 @@
   <main class="container-fluid p-4">
     <nav aria-label="breadcrumb">
       <ol class="breadcrumb">
-        <li class="breadcrumb-item active" aria-current="page">Home</li>
+        <li class="breadcrumb-item active" aria-current="page"><a href="/">Home</a></li>
       </ol>
     </nav>
 
     <h2 class="mb-3">Welcome to the Jukebox</h2>
+
+    <form action="/api/v1/cards" method="GET">
+      <div class="form-row align-items-center">
+        <label class="sr-only" for="cardSearchString">Search cards</label>
+        <div class="input-group mb-2 col-sm-6 offset-sm-3">
+          <input type="text" class="form-control" id="cardSearchString" placeholder="Search by no. or label" data-timer-label="cards" data-result-list="#cardList">
+          <div class="input-group-append">
+            <div class="input-group-text"><i class="fas fa-search"></i></div>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <ul class="list-group list-group-flush cards my-4" id="cardList"></ul>
 
     <nav class="d-flex justify-content-center" aria-label="Page navigation example">
       <ul class="mx-auto pagination">
@@ -42,8 +56,6 @@
         </li>
       </ul>
     </nav>
-
-    <ul class="list-group list-group-flush cards my-4" id="cardList"></ul>
 
     <h4>Add new card</h4>
     <form action="/api/v1/cards" method="POST" class="mb-3" id="frmNewCard">
@@ -65,7 +77,7 @@
 
         <div class="form-group">
           <label for="spotifySearchString">Search Spotify</label>
-          <input type="text" class="form-control" name="q" id="spotifySearchString">
+          <input type="text" class="form-control" name="q" id="spotifySearchString" data-timer-label="spotify" data-result-list="#spotifyResults">
         </div>
 
         <div class="form-check">
@@ -92,7 +104,8 @@
         socket.on('cardUpdated', updateCard)
         socket.on('cardDeleted', removeCard)
 
-        initSpotifySearch()
+        initTimeoutSearch("#spotifySearchString", searchSpotify)
+        initTimeoutSearch("#cardSearchString", searchCards, { minChars: 0 })
 
         $("#frmNewCard").submit(() => {
           createCard({
@@ -109,53 +122,56 @@
 
         $(".page-link").click((e) => {
           e.preventDefault()
+          let urlParams = new URLSearchParams(window.location.search)
 
           if (e.target.dataset.dir === "next") {
             let nextPage = page() + 1
-            history.pushState(null, null, `/cards?page=${nextPage}`)
+            urlParams.set('page', nextPage)
+            history.pushState(null, null, `/cards?${urlParams.toString()}`)
 
             getCards()
           } else if (e.target.dataset.dir === "prev") {
             let prevPage = page() - 1
             if (prevPage > 0) {
-              history.pushState(null, null, `/cards?page=${prevPage}`)
+              urlParams.set('page', prevPage)
+              history.pushState(null, null, `/cards?${urlParams.toString()}`)
 
               getCards()
             }
           }
         })
 
-        window.addEventListener('popstate', (e) => {
-          getCards()
-        })
-
+        window.addEventListener('popstate', (e) => { getCards() })
         getCards()
         // done init page
       })
 
       function getCards() {
-        clearCardList()
-        cardList().append(loader())
+        initLoad(cardList())
 
-        let queryStr = `?page=${page()}`
+        let query = new URLSearchParams()
+        query.set('page', page())
+        query.set('q', q())
+
+        let queryStr = `?${query.toString()}`
         fetch('/api/v1/cards' + queryStr).then((response) => {
           return response.json()
         }).then((data) => {
-          clearCardList()
+          clearChildren(cardList())
           data.forEach(appendCard)
         })
+      }
+
+      function q() {
+        let urlParams = new URLSearchParams(window.location.search)
+
+        return urlParams.get('q') || ""
       }
 
       function page() {
         let urlParams = new URLSearchParams(window.location.search)
 
         return parseInt(urlParams.get('page')) || 1
-      }
-
-      function clearCardList() {
-        while (cardList().firstChild) {
-          cardList().removeChild(cardList().firstChild)
-        }
       }
 
       function cardList() {
@@ -198,11 +214,7 @@
           // or filtering
           var newCardItem = buildCardItem(card)
 
-          oldCardItem.parentNode.replaceChild(newCardItem, oldCardItem)
-        } else {
-          // NOTE once pagination/filtering is in place, this will lead to some
-          // odd behaviour.
-          addCard(card)
+          cardList().replaceChild(newCardItem, oldCardItem)
         }
       }
 

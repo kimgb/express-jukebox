@@ -36,12 +36,14 @@
 
         <div class="form-group">
           <label for="uri">URI</label>
-          <input type="text" class="form-control" id="cardURI" name="uri" value="<%= card.uri %>" placeholder="Paste a URI to play here, or search Spotify below">
+          <input type="text" class="form-control" id="cardURI" name="uri" value="<%= card.uri %>" placeholder="Paste a URI to play here, or search Spotify below" data-timer-label="spotifyPreview" data-result-list="#spotifyPreview">
         </div>
+
+        <div class="d-flex flex-column w-100" id="spotifyPreview"></div>
 
         <div class="form-group">
           <label for="spotifySearchString">Search Spotify</label>
-          <input type="text" class="form-control" name="q" id="spotifySearchString">
+          <input type="text" class="form-control" name="q" id="spotifySearchString" data-timer-label="spotifySearch" data-result-list="#spotifyResults">
         </div>
 
         <div class="form-check">
@@ -63,7 +65,12 @@
     <script type="text/javascript">
       $(() => {
         // init page
-        initSpotifySearch()
+        initTimeoutSearch("#cardURI", previewSpotify)
+        initTimeoutSearch("#spotifySearchString", searchSpotify)
+
+        if (document.querySelector("#cardURI").value.length > 8) {
+          previewSpotify(document.querySelector("#cardURI").value)
+        }
         // done init page
       })
     </script>

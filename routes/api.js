@@ -22,8 +22,14 @@ router.get('/cards', (req, res) => {
   // }
 
   let page = parseInt(req.query.page)
+  let q = req.query.q
+  let findOpts = {}
 
-  getDB().collection('cards').find().sort({ _id: -1 }).skip(10 * (page - 1)).limit(10).toArray((err, cards) => {
+  if (q) {
+    findOpts = { $text: { $search: q }}
+  }
+
+  getDB().collection('cards').find(findOpts).sort({ _id: -1 }).skip(10 * (page - 1)).limit(10).toArray((err, cards) => {
     if (err) return console.log(err)
 
     res.send(cards)
@@ -100,7 +106,7 @@ router.delete('/cards/:cardId', (req, res) => {
   )
 })
 
-router.get('/search/spotify', (req, res) => {
+router.get('/spotify/search', (req, res) => {
   var id = config.SPOTIFY_CLIENT_ID
   var secret = config.SPOTIFY_CLIENT_SECRET
   var auth_request = Buffer.from(`${id}:${secret}`).toString('base64')
@@ -158,6 +164,46 @@ router.get('/search/spotify', (req, res) => {
         // track.name
         // track.duration_ms (e.g. 226440)
         // track.uri
+        res.send(body)
+      })
+    }
+  })
+})
+
+router.get('/spotify/lookup', (req, res) => {
+  let id = config.SPOTIFY_CLIENT_ID
+  let secret = config.SPOTIFY_CLIENT_SECRET
+  let auth_request = Buffer.from(`${id}:${secret}`).toString('base64')
+  let authOptions = {
+    url: 'https://accounts.spotify.com/api/token',
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Authorization': `Basic ${auth_request}`
+    },
+    form: {
+      grant_type: 'client_credentials'
+    },
+    json: true
+  }
+
+  console.log('obtaining client credentials access to Spotify')
+  request.post(authOptions, (error, response, body) => {
+    if (!error && response.statusCode === 200) {
+      // console.log(body)
+      let url = `https://api.spotify.com/v1/${req.query.type}s/${req.query.id}`
+      let options = {
+        url: url,
+        headers: {
+          'Authorization': `Bearer ${body.access_token}`
+        },
+        json: true
+      }
+
+      console.log(`client credentials obtained: ${body.access_token}`)
+      console.log(`proceeding to make API lookup at "${url}"`)
+      request.get(options, (error, response, body) => {
+        if (error) return console.log(error)
+
         res.send(body)
       })
     }

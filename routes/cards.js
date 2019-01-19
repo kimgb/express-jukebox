@@ -27,7 +27,7 @@ router.post('/edit/:cardId', (req, res) => {
       if (err) return res.send(500, err)
 
       var io = req.app.get('socketio')
-      io.emit('cardUpdated', req.body)
+      io.emit('cardUpdated', result.value)
       res.redirect('/cards')
     }
   )
