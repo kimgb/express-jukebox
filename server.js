@@ -14,7 +14,7 @@ const io = require('socket.io')(http)
 const winston = require('winston')
 const expressWinston = require('express-winston')
 
-app.use(express.static(__dirname))
+app.use(express.static(path.join(__dirname, 'public')))
 app.use(bodyParser.urlencoded({ extended: true }))
 app.use(bodyParser.json())
 

@@ -7,12 +7,14 @@
 
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
   <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css" integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/" crossorigin="anonymous">
+  <link href="/css/application.css" rel="stylesheet">
 
   <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/application.js"></script>
 </head>
 <body>
   <main class="container-fluid p-4">
@@ -24,9 +26,24 @@
 
     <h2 class="mb-3">Welcome to the Jukebox</h2>
 
-    <ul class="list-group list-group-flush cards my-4" id="cardList">
-      <img width="100px" height="100px" src="/public/triangles.svg" class="mx-auto" id="trianglesLoader">
-    </ul>
+    <nav class="d-flex justify-content-center" aria-label="Page navigation example">
+      <ul class="mx-auto pagination">
+        <li class="page-item">
+          <a class="page-link" href="#" aria-label="Previous" data-dir="prev">
+            <span aria-hidden="true">&laquo;</span>
+            <span class="sr-only">Previous</span>
+          </a>
+        </li>
+        <li class="page-item">
+          <a class="page-link" href="#" aria-label="Next" data-dir="next">
+            <span aria-hidden="true">&raquo;</span>
+            <span class="sr-only">Next</span>
+          </a>
+        </li>
+      </ul>
+    </nav>
+
+    <ul class="list-group list-group-flush cards my-4" id="cardList"></ul>
 
     <h4>Add new card</h4>
     <form action="/api/v1/cards" method="POST" class="mb-3" id="frmNewCard">
@@ -75,25 +92,7 @@
         socket.on('cardUpdated', updateCard)
         socket.on('cardDeleted', removeCard)
 
-        var typingTimer
-        const doneTypingInterval = 500
-        $("#spotifySearchString").keyup(() => {
-          var spotifyResults = document.getElementById('spotifyResults')
-
-          clearTimeout(typingTimer)
-          while (spotifyResults.firstChild) {
-            spotifyResults.removeChild(spotifyResults.firstChild)
-          }
-
-          if($("#spotifySearchString").val().length > 3) {
-            append(spotifyResults, loader())
-            typingTimer = setTimeout(searchSpotify, doneTypingInterval)
-          }
-        })
-
-        $("#spotifySearchString").keydown(() => {
-          clearTimeout(typingTimer)
-        })
+        initSpotifySearch()
 
         $("#frmNewCard").submit(() => {
           createCard({
@@ -108,48 +107,59 @@
           return false
         })
 
+        $(".page-link").click((e) => {
+          e.preventDefault()
+
+          if (e.target.dataset.dir === "next") {
+            let nextPage = page() + 1
+            history.pushState(null, null, `/cards?page=${nextPage}`)
+
+            getCards()
+          } else if (e.target.dataset.dir === "prev") {
+            let prevPage = page() - 1
+            if (prevPage > 0) {
+              history.pushState(null, null, `/cards?page=${prevPage}`)
+
+              getCards()
+            }
+          }
+        })
+
+        window.addEventListener('popstate', (e) => {
+          getCards()
+        })
+
         getCards()
         // done init page
       })
 
-      function searchSpotify() {
-        var type = "track,album,playlist"
-        var q = encodeURI($("#spotifySearchString").val())
+      function getCards() {
+        clearCardList()
+        cardList().append(loader())
 
-        var spotifyResults = document.getElementById('spotifyResults')
-
-        fetch(`/api/v1/search/spotify?q=${q}&type=${type}`).then((response) => {
+        let queryStr = `?page=${page()}`
+        fetch('/api/v1/cards' + queryStr).then((response) => {
           return response.json()
         }).then((data) => {
-          while (spotifyResults.firstChild) {
-            spotifyResults.removeChild(spotifyResults.firstChild)
-          }
-
-          var albums = data.albums.items
-          var playlists = data.playlists.items
-          var tracks = data.tracks.items
-
-          if (albums && albums.length > 0) {
-            addSpotifyResultList("Albums", albums.slice(0,7))
-          }
-
-          if (playlists && playlists.length > 0) {
-            addSpotifyResultList("Playlists", playlists.slice(0,7))
-          }
-
-          if (tracks && tracks.length > 0) {
-            addSpotifyResultList("Songs", tracks.slice(0,7))
-          }
+          clearCardList()
+          data.forEach(appendCard)
         })
       }
 
-      function getCards() {
-        fetch('/api/v1/cards').then((response) => {
-          return response.json()
-        }).then((data) => {
-          $("#trianglesLoader").remove()
-          data.forEach(addCard)
-        })
+      function page() {
+        let urlParams = new URLSearchParams(window.location.search)
+
+        return parseInt(urlParams.get('page')) || 1
+      }
+
+      function clearCardList() {
+        while (cardList().firstChild) {
+          cardList().removeChild(cardList().firstChild)
+        }
+      }
+
+      function cardList() {
+        return document.getElementById('cardList')
       }
 
       function removeCard(cardId) {
@@ -168,11 +178,17 @@
         })
       }
 
-      function addCard(card) {
-        var cardList = document.getElementById('cardList')
+      function appendCard(card) {
         var cardItem = buildCardItem(card)
 
-        append(cardList, cardItem)
+        cardList().append(cardItem)
+      }
+
+      function addCard(card) {
+        var cardItem = buildCardItem(card)
+
+        cardList().prepend(cardItem)
+        cardList().removeChild(cardList().lastChild)
       }
 
       function updateCard(card) {
@@ -211,169 +227,7 @@
           console.log(response.json())
         })
       }
-
-      function createNode(element) {
-        return document.createElement(element)
-      }
-
-      function append(parent, el) {
-        return parent.appendChild(el)
-      }
-
-      function loader() {
-        var svg = createNode('img')
-        svg.classList.add("mx-auto")
-        svg.src = "/public/triangles.svg"
-        svg.width = "100"
-        svg.height = "100"
-
-        return svg
-      }
-
-      function addSpotifyResultList(title, items) {
-        // <h5 class="w-100 border-bottom">Albums</h5>
-        // <div class="row" id="albumList"></div>
-        var spotifyResults = document.getElementById('spotifyResults')
-        var headingItem = createNode('h5')
-        var rowItem = createNode('div')
-
-        headingItem.classList.add("w-100", "border-bottom")
-        headingItem.textContent = title
-        rowItem.classList.add("row")
-
-        items.forEach((item) => append(rowItem, buildSpotifyItem(item)))
-
-        append(spotifyResults, headingItem)
-        append(spotifyResults, rowItem)
-      }
-
-      function buildSpotifyItem(item) {
-        var colItem = createNode('div')
-        var itemLink = createNode('a')
-        var itemThumbnail = createNode('img')
-        var itemDetail = createNode('div')
-        var itemName = createNode('span')
-        var itemArtist = createNode('span')
-        var lineBreak = createNode('br')
-
-        colItem.classList.add("mb-3", "col-xs-6", "col-sm-3")
-
-        itemLink.classList.add("d-flex", "align-items-center", "spotify-item")
-        itemLink.dataset.uri = item.uri
-        itemLink.href = "#"
-
-        itemThumbnail.classList.add("float-left", "item-thumbnail")
-        itemThumbnail.alt = `${item.name} cover`
-        // 2 is normally 64x64
-        // Tracks needs to look up item.album.images[2].url
-        if (typeof item.images !== "undefined") {
-          itemThumbnail.src = item.images[item.images.length - 1].url
-        } else {
-          itemThumbnail.src = item.album.images[2].url
-        }
-
-        itemDetail.classList.add("ml-2", "item-detail")
-        itemName.textContent = item.name
-        // collect up to x or 'various artists'?
-        // Playlists need to look up item.owner.display_name
-        if (typeof item.artists !== "undefined") {
-          itemArtist.textContent = item.artists[0].name
-        } else {
-          itemArtist.textContent = item.owner.display_name
-        }
-
-        append(itemDetail, itemName)
-        append(itemDetail, lineBreak)
-        append(itemDetail, itemArtist)
-
-        append(itemLink, itemThumbnail)
-        append(itemLink, itemDetail)
-
-        append(colItem, itemLink)
-
-        itemLink.addEventListener('click', (e) => {
-          e.preventDefault()
-          $("#cardURI").val(itemLink.dataset.uri)
-        })
-
-        return colItem
-      }
-
-      function buildCardItem(card) {
-        var cardItem = createNode('li')
-        var label = createNode('span')
-        var btnGrp = createNode('div')
-        var scanBtn = createNode('a')
-        var editBtn = createNode('a')
-        var deleteBtn = createNode('a')
-        var editIcon = createNode('i')
-        var deleteIcon = createNode('i')
-        var scanIcon = createNode('i')
-
-        cardItem.classList.add("list-group-item", "d-flex", "justify-content-between")
-        cardItem.id = "card" + card.number
-        label.textContent = card.label ? card.label + ' [' + card.number + ']' : card.number
-
-        btnGrp.classList.add("btn-group")
-        btnGrp.attributes.role = "group"
-
-        scanBtn.classList.add("btn", "btn-sm", "btn-warning")
-        scanBtn.href = "#"
-        scanBtn.id = "btnScanCard" + card.number
-        scanBtn.dataset.number = card.number
-        scanIcon.classList.add("fas", "fa-play")
-        scanBtn.addEventListener('click', (e) => {
-          e.preventDefault()
-          scanCard(e.target.dataset.number)
-        })
-
-        editBtn.classList.add("btn", "btn-sm", "btn-primary")
-        editBtn.href = "/cards/edit/" + card.number
-        editIcon.classList.add("fas", "fa-edit")
-
-        deleteBtn.classList.add("btn", "btn-sm", "btn-danger")
-        deleteBtn.href = "#"
-        deleteBtn.id = "btnDeleteCard" + card.number
-        deleteBtn.dataset.number = card.number
-        deleteIcon.classList.add("fas", "fa-trash")
-        deleteBtn.addEventListener('click', (e) => {
-          e.preventDefault()
-          deleteCard(e.target.dataset.number)
-        })
-
-        append(scanBtn, scanIcon)
-        append(editBtn, editIcon)
-        append(deleteBtn, deleteIcon)
-
-        append(btnGrp, scanBtn)
-        append(btnGrp, editBtn)
-        append(btnGrp, deleteBtn)
-
-        append(cardItem, label)
-        append(cardItem, btnGrp)
-
-        return cardItem
-      }
     </script>
-
-    <style media="screen">
-      .btn > * {
-        pointer-events: none;
-      }
-
-      .item-thumbnail {
-        height: 64px;
-        width: 64px;
-      }
-
-      a.spotify-item { text-decoration: none }
-      a.spotify-item:hover { background-color: rgba(0,0,0,0.1) }
-      .item-detail {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-    </style>
   </main>
 </body>
 </html>

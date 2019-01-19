@@ -1,0 +1,16 @@
+.btn > *, .page-link > * {
+  pointer-events: none;
+}
+
+.item-thumbnail {
+  height: 64px;
+  width: 64px;
+}
+
+a.spotify-item { text-decoration: none }
+a.spotify-item:hover { background-color: rgba(0,0,0,0.1) }
+.item-detail {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

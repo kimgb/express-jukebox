@@ -1,14 +1,29 @@
 const config = require('../config')
 const initDB = require('../db').initDB
 const getDB = require('../db').getDB
+const ObjectId = require('mongodb').ObjectID
 const request = require('request')
 const router = require('express').Router()
 
 const { Sonos } = require('sonos')
 const speaker = new Sonos(config.SONOS_SPEAKER_IP)
 
+let io = (req) => { return req.app.get('socketio') }
+
 router.get('/cards', (req, res) => {
-  getDB().collection('cards').find().toArray((err, cards) => {
+  // let where = {}
+  // let ltCardId = req.query.ltCardId
+  // let gtCardId = req.query.gtCardId
+  //
+  // if (typeof(ltCardId) !== "undefined") {
+  //   where = {"_id":{$lt:ObjectId(ltCardId)}}
+  // } else if (typeof(gtCardId) !== "undefined") {
+  //   where = {"_id":{$gt:ObjectId(gtCardId)}}
+  // }
+
+  let page = parseInt(req.query.page)
+
+  getDB().collection('cards').find().sort({ _id: -1 }).skip(10 * (page - 1)).limit(10).toArray((err, cards) => {
     if (err) return console.log(err)
 
     res.send(cards)
@@ -20,8 +35,7 @@ router.post('/cards', (req, res) => {
     if (err) return console.log(err)
 
     // console.log(results)
-    var io = req.app.get('socketio')
-    io.emit('cardAdded', req.body)
+    io(req).emit('cardAdded', req.body)
     res.send(results)
   })
 })
@@ -65,8 +79,7 @@ router.put('/cards/:cardId', (req, res) => {
       getDB().collection('cards').insertOne({ number: req.params.cardId }, (err, result) => {
         if (err) return console.log(err)
 
-        var io = req.app.get('socketio')
-        io.emit('cardAdded', { number: req.params.cardId })
+        io(req).emit('cardAdded', { number: req.params.cardId })
         res.send({ message: 'Card created with number ' + req.params.cardId })
       })
     } else { // card that's been scanned but still has no URI
@@ -81,8 +94,7 @@ router.delete('/cards/:cardId', (req, res) => {
     (err, result) => {
       if (err) return res.send(500, err)
 
-      var io = req.app.get('socketio')
-      io.emit('cardDeleted', req.params.cardId)
+      io(req).emit('cardDeleted', req.params.cardId)
       res.send(result)
     }
   )
