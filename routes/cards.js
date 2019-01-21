@@ -23,11 +23,12 @@ router.post('/edit/:cardId', (req, res) => {
       shuffle: req.body.shuffle ? true : false,
       repeat: req.body.repeat ? true: false,
     }},
-    (err, result) => {
+    { returnOriginal: false },
+    (err, doc) => {
       if (err) return res.send(500, err)
 
       var io = req.app.get('socketio')
-      io.emit('cardUpdated', result.value)
+      io.emit('cardUpdated', doc.value)
       res.redirect('/cards')
     }
   )
